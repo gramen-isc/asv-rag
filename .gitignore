@@ -1,8 +1,5 @@
 .venv/
-faiss_index/
 __pycache__/
 *.pyc
-learned_topics.json
-qa_cache.json
 /tmp/
 .DS_Store
