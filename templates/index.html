@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Read</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 16px 24px;
+            background: #16213e;
+            border-bottom: 1px solid #2a2a4a;
+            text-align: center;
+        }
+
+        header h1 { font-size: 18px; font-weight: 600; color: #c9a84c; }
+        header p { font-size: 12px; color: #888; margin-top: 4px; }
+
+        #main-layout {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #chat-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        /* --- Verse panel (right side) --- */
+        #verse-panel {
+            width: 0;
+            overflow: hidden;
+            background: #f5f0e6;
+            transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #2a2a4a;
+        }
+
+        #verse-panel.open { width: 420px; }
+
+        #verse-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #ebe5d5;
+            border-bottom: 1px solid #d4cdb8;
+            min-height: 48px;
+        }
+
+        #verse-panel-header .chapter-title {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 14px;
+            color: #5a4a3a;
+            font-style: italic;
+        }
+
+        #verse-panel-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #8a7a6a;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        #verse-panel-close:hover { color: #4a3a2a; }
+
+        #verse-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px 28px;
+        }
+
+        .bible-page {
+            max-width: 360px;
+            margin: 0 auto;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #3a2a1a;
+            line-height: 1.85;
+            font-size: 14.5px;
+        }
+
+        .bible-page .verse-line {
+            margin-bottom: 4px;
+        }
+
+        .bible-page .verse-num {
+            font-size: 10px;
+            vertical-align: super;
+            color: #8a7a6a;
+            margin-right: 2px;
+            font-family: -apple-system, sans-serif;
+        }
+
+        .bible-page .verse-line.highlighted {
+            background: #e8dcc4;
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin-left: -4px;
+            margin-right: -4px;
+        }
+
+        .bible-page .chapter-heading {
+            text-align: right;
+            font-size: 13px;
+            color: #8a7a6a;
+            margin-bottom: 24px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #d4cdb8;
+            font-style: italic;
+        }
+
+        /* --- Chat area --- */
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 720px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message.user .avatar { background: #2d5a9e; }
+        .message.assistant .avatar { background: #6b4c2a; }
+
+        .message .content {
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 14px;
+            word-wrap: break-word;
+        }
+
+        .message.user .content { background: #1e3a5f; color: #d0e0f0; }
+        .message.assistant .content { background: #2a2a4a; color: #e0e0e0; white-space: pre-wrap; }
+
+        .message.assistant .content .cursor {
+            display: inline-block;
+            width: 7px;
+            height: 16px;
+            background: #c9a84c;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 0.8s step-end infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .verse-link {
+            color: #c9a84c;
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 3px;
+        }
+
+        .verse-link:hover {
+            color: #e0c060;
+            text-decoration-style: solid;
+        }
+
+        .feedback-bar {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .feedback-btn {
+            background: none;
+            border: 1px solid #3a3a5a;
+            border-radius: 6px;
+            color: #888;
+            font-size: 13px;
+            padding: 3px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .feedback-btn:hover {
+            border-color: #c9a84c;
+            color: #c9a84c;
+        }
+
+        .feedback-btn.voted {
+            border-color: #5a9a5a;
+            color: #5a9a5a;
+            cursor: default;
+        }
+
+        #empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            gap: 12px;
+        }
+
+        #empty-state .icon { font-size: 48px; }
+        #empty-state p { font-size: 14px; }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .suggestions button {
+            padding: 8px 16px;
+            background: #2a2a4a;
+            border: 1px solid #3a3a5a;
+            border-radius: 20px;
+            color: #c0c0c0;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestions button:hover {
+            background: #3a3a5a;
+            border-color: #c9a84c;
+            color: #fff;
+        }
+
+        /* --- Terminal panel --- */
+        #terminal {
+            background: #0d0d1a;
+            border-top: 1px solid #2a2a4a;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 8px 12px;
+        }
+
+        #terminal .log-line {
+            color: #6a9a5a;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        #terminal .log-line.status {
+            color: #5a7a9a;
+        }
+
+        #terminal .log-line.error {
+            color: #c45a5a;
+        }
+
+        #terminal .log-prompt {
+            color: #555;
+        }
+
+        #terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0d0d1a;
+            border-top: 1px solid #2a2a4a;
+            padding: 4px 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #terminal-header span {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 10px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #terminal-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 10px;
+        }
+
+        #terminal-status .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #555;
+        }
+
+        #terminal-status .dot.connected { background: #5a9a5a; }
+        #terminal-status .dot.disconnected { background: #c45a5a; }
+
+        #terminal-status .label { color: #555; }
+
+        /* --- Input area --- */
+        #input-area {
+            padding: 16px 24px 24px;
+            background: #16213e;
+            border-top: 1px solid #2a2a4a;
+        }
+
+        #input-wrapper {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        #question-input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #1a1a2e;
+            border: 1px solid #3a3a5a;
+            border-radius: 12px;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 48px;
+            max-height: 120px;
+        }
+
+        #question-input:focus { border-color: #c9a84c; }
+        #question-input::placeholder { color: #666; }
+
+        #send-btn {
+            padding: 12px 20px;
+            background: #c9a84c;
+            border: none;
+            border-radius: 12px;
+            color: #1a1a2e;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            align-self: flex-end;
+        }
+
+        #send-btn:hover { background: #d4b65e; }
+        #send-btn:disabled { background: #555; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Daily Read</h1>
+        <p>100% Local &mdash; Powered by Ollama + FAISS</p>
+    </header>
+
+    <div id="main-layout">
+        <div id="chat-side">
+            <div id="chat-container">
+                <div id="empty-state">
+                    <div class="icon">&#128220;</div>
+                    <p>Ask anything about the American Standard Version Bible</p>
+                    <div class="suggestions">
+                        <button onclick="askSuggestion(this)">What are the Ten Commandments?</button>
+                        <button onclick="askSuggestion(this)">What does Psalm 23 say?</button>
+                        <button onclick="askSuggestion(this)">What did Jesus say about love?</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="terminal-header" onclick="toggleTerminal()">
+                <span>ollama</span>
+                <div id="terminal-status">
+                    <div class="dot" id="status-dot"></div>
+                    <span class="label" id="status-label">checking...</span>
+                </div>
+            </div>
+            <div id="terminal">
+                <div class="log-line status">Waiting for activity...</div>
+            </div>
+
+            <div id="input-area">
+                <div id="input-wrapper">
+                    <textarea id="question-input" placeholder="Ask a question..." rows="1"></textarea>
+                    <button id="send-btn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="verse-panel">
+            <div id="verse-panel-header">
+                <span class="chapter-title" id="panel-chapter-title"></span>
+                <button id="verse-panel-close" onclick="closeVersePanel()">&times;</button>
+            </div>
+            <div id="verse-panel-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const questionInput = document.getElementById('question-input');
+        const sendBtn = document.getElementById('send-btn');
+        const emptyState = document.getElementById('empty-state');
+        const versePanel = document.getElementById('verse-panel');
+        const panelChapterTitle = document.getElementById('panel-chapter-title');
+        const panelContent = document.getElementById('verse-panel-content');
+        const terminal = document.getElementById('terminal');
+        const statusDot = document.getElementById('status-dot');
+        const statusLabel = document.getElementById('status-label');
+        let isStreaming = false;
+        let terminalVisible = true;
+        const sessionId = crypto.randomUUID();
+
+        const BOOK_PATTERN = '(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation)';
+        const VERSE_REGEX = new RegExp(`(${BOOK_PATTERN})\\s+(\\d+):(\\d+(?:\\s*[-,]\\s*\\d+)*)`, 'g');
+
+        function toggleTerminal() {
+            terminalVisible = !terminalVisible;
+            terminal.style.display = terminalVisible ? 'block' : 'none';
+        }
+
+        function termLog(text, cls = '') {
+            const line = document.createElement('div');
+            line.className = 'log-line' + (cls ? ' ' + cls : '');
+            const ts = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            line.textContent = `[${ts}] ${text}`;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+            if (terminal.children.length > 100) {
+                terminal.removeChild(terminal.firstChild);
+            }
+        }
+
+        async function pollStatus() {
+            try {
+                const resp = await fetch('/status');
+                const data = await resp.json();
+                if (data.ollama === 'running') {
+                    statusDot.className = 'dot connected';
+                    const models = data.models_loaded.length ? data.models_loaded.join(', ') : 'idle';
+                    statusLabel.textContent = models;
+                } else {
+                    statusDot.className = 'dot disconnected';
+                    statusLabel.textContent = 'disconnected';
+                }
+            } catch {
+                statusDot.className = 'dot disconnected';
+                statusLabel.textContent = 'disconnected';
+            }
+        }
+
+        pollStatus();
+        setInterval(pollStatus, 5000);
+
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        questionInput.addEventListener('input', () => {
+            questionInput.style.height = 'auto';
+            questionInput.style.height = Math.min(questionInput.scrollHeight, 120) + 'px';
+        });
+
+        function askSuggestion(btn) {
+            questionInput.value = btn.textContent;
+            sendMessage();
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        function formatResponse(text) {
+            const escaped = escapeHtml(text);
+            const bolded = escaped.replace(/\*\*\s*(.+?)\s*\*\*/g, '<strong>$1</strong>');
+            const linked = bolded.replace(VERSE_REGEX, (match, book, chapter, versesPart) => {
+                const firstVerse = versesPart.split(/[-,]/)[0].trim();
+                const ref = `${book} ${chapter}:${firstVerse}`;
+                return `<a class="verse-link" onclick="openVerse('${ref}')">${match}</a>`;
+            });
+            return linked;
+        }
+
+        function addMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            const avatarText = role === 'user' ? 'Y' : 'A';
+            div.innerHTML = `
+                <div class="avatar">${avatarText}</div>
+                <div class="content">${role === 'user' ? escapeHtml(text) : text}</div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return div;
+        }
+
+        async function openVerse(ref) {
+            try {
+                const resp = await fetch(`/verse?ref=${encodeURIComponent(ref)}`);
+                if (!resp.ok) return;
+                const data = await resp.json();
+
+                panelChapterTitle.textContent = data.chapter;
+                versePanel.classList.add('open');
+
+                let html = '<div class="bible-page">';
+                html += `<div class="chapter-heading">${escapeHtml(data.chapter)}</div>`;
+
+                for (const v of data.verses) {
+                    const isTarget = v.ref === data.target_ref;
+                    html += `<span class="verse-line${isTarget ? ' highlighted' : ''}">`;
+                    html += `<span class="verse-num">${v.verse}</span>`;
+                    html += `${escapeHtml(v.text)} `;
+                    html += `</span>`;
+                }
+
+                html += '</div>';
+                panelContent.innerHTML = html;
+
+                const highlighted = panelContent.querySelector('.highlighted');
+                if (highlighted) {
+                    highlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch (err) {
+                console.error('Failed to load verse:', err);
+            }
+        }
+
+        function closeVersePanel() {
+            versePanel.classList.remove('open');
+        }
+
+        async function sendFeedback(btn, vote, question, answer, chapters) {
+            if (btn.classList.contains('voted')) return;
+            try {
+                await fetch('/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, answer, chapters, vote }),
+                });
+                btn.classList.add('voted');
+                if (vote === 'up') {
+                    termLog('> Feedback saved - answer cached for future use');
+                }
+            } catch {}
+        }
+
+        function addFeedbackBar(contentEl, question, answer, chapters) {
+            const bar = document.createElement('div');
+            bar.className = 'feedback-bar';
+
+            const upBtn = document.createElement('button');
+            upBtn.className = 'feedback-btn';
+            upBtn.textContent = '▲';
+            upBtn.title = 'Good answer - remember this';
+            upBtn.onclick = () => sendFeedback(upBtn, 'up', question, answer, chapters);
+
+            const downBtn = document.createElement('button');
+            downBtn.className = 'feedback-btn';
+            downBtn.textContent = '▼';
+            downBtn.title = 'Poor answer';
+            downBtn.onclick = () => sendFeedback(downBtn, 'down', question, answer, chapters);
+
+            bar.appendChild(upBtn);
+            bar.appendChild(downBtn);
+            contentEl.appendChild(bar);
+        }
+
+        async function sendMessage() {
+            const question = questionInput.value.trim();
+            if (!question || isStreaming) return;
+
+            if (emptyState) emptyState.remove();
+
+            addMessage('user', question);
+            questionInput.value = '';
+            questionInput.style.height = 'auto';
+
+            isStreaming = true;
+            sendBtn.disabled = true;
+
+            termLog(`Query: "${question}"`);
+
+            const msgDiv = addMessage('assistant', '');
+            const contentEl = msgDiv.querySelector('.content');
+            contentEl.innerHTML = '<span class="cursor"></span>';
+
+            let fullText = '';
+            let chapters = [];
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, session_id: sessionId }),
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const payload = line.slice(6);
+                        if (payload === '[DONE]') break;
+
+                        try {
+                            const data = JSON.parse(payload);
+                            if (data.token) {
+                                fullText += data.token;
+                                contentEl.innerHTML = escapeHtml(fullText) + '<span class="cursor"></span>';
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }
+                            if (data.log) {
+                                termLog(data.log);
+                            }
+                            if (data.chapters) {
+                                chapters = data.chapters;
+                            }
+                        } catch {}
+                    }
+                }
+            } catch (err) {
+                fullText = 'Error: Could not reach the server. Make sure Ollama is running.';
+                termLog('Connection error', 'error');
+            }
+
+            contentEl.innerHTML = formatResponse(fullText);
+            addFeedbackBar(contentEl, question, fullText, chapters);
+            isStreaming = false;
+            sendBtn.disabled = false;
+            questionInput.focus();
+            pollStatus();
+        }
+    </script>
+</body>
+</html>
