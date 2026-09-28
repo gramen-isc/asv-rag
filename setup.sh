@@ -68,12 +68,13 @@ fi
 echo
 echo "=== Setup complete! ==="
 echo
-echo "Ollama is running as a background service (${OLLAMA_NUM_THREADS} threads)."
-echo "To change the thread limit, edit OLLAMA_NUM_THREADS in setup.sh and re-run."
-echo
-echo "Start the app:"
-echo "  source .venv/bin/activate"
-echo "  python3 web_app.py"
-echo
-echo "Or use the CLI:"
-echo "  python3 rag_agent.py"
+
+if [ "${1}" = "--no-launch" ]; then
+    echo "Start the app:"
+    echo "  source .venv/bin/activate"
+    echo "  python3 web_app.py"
+    exit 0
+fi
+
+echo "Launching Daily Read..."
+python3 "$SCRIPT_DIR/web_app.py"
